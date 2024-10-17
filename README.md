@@ -156,6 +156,9 @@ What makes we wonder is that the datagram described in [3] misses some rows mean
 
 Where is "Cooling energy E3" hiding? Probably the example lacks it because it is given for a heat-only meter, which shares the same document. I am curios what the real answer will look like...
 
+REQ_UD2 ```105B308B16``` results in the following RSP_UD REPLY:
+```6888886808307248xxxxxx2d2c400d0000000004069a00000004863c0000000004146d0f000004ff077205000004ff08ec0400000322890a0033220000000259720b025d040b02616e00022d0e00122db400023b6804123b7a0402ff22000044060000000044863c0000000044140000000044ff070000000044ff0800000000522d0000523b0000426c00003316``` (142 bytes). 
+
 
 ### Projects considered
 
@@ -224,9 +227,40 @@ Side note: if bidirectional meters and their software support is so uncommon, th
 
 I am a big fan of simple solutions and I think wmbusmeters does not fit well in this category, as it is one of the largest projects of the above. But it is a great project, as it seems to be the only one whose concept allows an easy and clean way for adaptions to my hardware and use case. So i will give it a try.
 
-To be continued when I have hardware available...
 
+### wmbusmeters
 
+Feeding it with the data from above
+```
+./wmbusmeters --analyze  6888886808307248xxxxxx2d2c400d0000000004069a00000004863c0000000004146d0f000004ff077205000004ff08ec0400000322890a0033220000000259720b025d040b02616e00022d0e00122db400023b6804123b7a0402ff22000044060000000044863c0000000044140000000044ff070000000044ff0800000000522d0000523b0000426c00003316
+```
+produces
+![analyze](img/analyze.png)
+
+As expected, a few values could not be decoded. I am particularly interested in the one at bytes 25-31, which is supposed to be cooling energy:
+
+```
+025   : 04 dif (32 Bit Integer/Binary Instantaneous value)
+026   : 86 vif (Energy kWh)
+027   : 3C combinable vif (BackwardFlow)
+028 C?: 00000000
+```
+
+But the encoding is different from what I expected. Chapter "Kamstrup specific VIF Extensions" of [3] defines e.g.:
+![analyze](img/vife02.png)
+So I expected to see something like
+```
+026   : FF vif (Manufacturer Specific)
+027   : 02 vife (Cooling Energy (E3))
+```
+but this ist not the case. This is suprising, because Kamstrup uses this exact method for ```forward_energy_m3c``` etc..
+
+But wait, wmbusmeter was able to decode "Energy kWh" and "BackwardFlow", without knowing my expectation. Is there a manufacturer-agnostic way of encoding, that I have not seen before?
+
+VIF 86h is to be read like 06h ("Energy in kWh") + 80h ("Extension bit set") ["for an enhancement of VIF"](https://m-bus.com/documentation-wired/08-appendix#845-codes-for-value-information-field-extension-vife). So the following byte 3Ch refers to "Energy in kWh". 3Ch is [defined as ](https://m-bus.com/documentation-wired/08-appendix#845-codes-for-value-information-field-extension-vife) "E011 1100	Accumulation of abs value only if negative contributions". In fact, this is exactely what it is supposed to say: Counting "negative" energy. Cooling instead of heating.
+
+By the way, there is also a code for "Accumulation only if positive contributions". I don't know why Kamstrup did not apply this "enhanced" information to heat energy. Probably to avoid compatibility issues.
+And I wonder why Kamstrup defines a manufacturer specific way, if there *is* a standard-compliant manufacturer-agnostic way. And I am impressed of the M-Bus-authors' work. Covering so many use cases in a both comprehensible and efficient manner. 
 
 
 
