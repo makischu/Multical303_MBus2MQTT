@@ -79,35 +79,35 @@ The expected response is:
 | -- | -- |
 | 0xE5 |  Single Character, ACK |
 
-All together:
+The Serial-Converter is configured for 2400 baud, 8 bits, even parity, 1 stop bit.
 
 ```
-socat  pty,link=/dev/virtualcom0,raw  tcp:192.168.2.36:8234&
-echo -e "\x10\x40\xFE\x3E\x16" > /dev/virtualcom0 
-cat /dev/virtualcom0
+socat  pty,link=/dev/virtualcom0,raw,echo=0  tcp:192.168.2.51:8234&
+echo -n -e "\x10\x40\xFE\x3E\x16" > /dev/virtualcom0 
+dd count=1 bs=1 if=/dev/virtualcom0 status=none | xxd -ps
 ```
 
-Output:
+outputs
 ```
-TODO
-success or fail.
+e5
 ```
+First success.
 
 ### The meter's address
 
 Although for now there is only 1 device on the bus, you don't want to use the broadcast address permanently. 
 
-The [standard](https://m-bus.com/documentation-wired/05-data-link-layer#52-telegram-format) sais "Unconfigured slaves are given the address 0 at manufacture", but Kamstrup indicates a serial-number-dependent default address [2]. Anyhow, there is a command for "overwriting" the address [3], just in case.
+The [standard](https://m-bus.com/documentation-wired/05-data-link-layer#52-telegram-format) sais "Unconfigured slaves are given the address 0 at manufacture", but Kamstrup indicates a serial-number-dependent default address [2]. Anyhow, there is a command for "overwriting" the address [3], just in case. 
 
-To determine the address, we can send a "status request" `REQ_SKE` to the broadcast address `0xFE` and we should receive a 5 byte answer including the address in the A-field.
+To determine the address, we (could query the display or) send a "status request" `REQ_SKE` [49h](https://documentation.kamstrup.com/docs/M-Bus_MCIII_compatible_for_MC61_62_601_602_801/de-DE/Data_sheet/CONTEA955C9259B54883B0876E44FB24BC7E/) to the broadcast address `0xFE` and the meter "Replies with RSP_SKE" [3], which means we should receive a 5 byte answer including the address in the A-field.
 
 ```
-REQ_SKE: 10 4B FE 49 16
+REQ_SKE: 10 49 FE 49 16
 RSP_SKE: 10 0B ?? ?? 16
                ^^
 ```
 
-<span style="color:red">response to be added once hardware available.</span>.
+In my case I received ```10 0b 30 3b 16```, so my meter has address 30h. Display sais 48 (decimal). Fits. 
 
 
 ### The meter's data to be decoded
@@ -225,6 +225,8 @@ Side note: if bidirectional meters and their software support is so uncommon, th
 I am a big fan of simple solutions and I think wmbusmeters does not fit well in this category, as it is one of the largest projects of the above. But it is a great project, as it seems to be the only one whose concept allows an easy and clean way for adaptions to my hardware and use case. So i will give it a try.
 
 To be continued when I have hardware available...
+
+
 
 
 
