@@ -3,8 +3,7 @@ Kamstrup Multical 303 heat+cooling meter data decoding for MQTT
 
 ## Goal
 
-<span style="color:red">TODO Image of meter + json bubble or so.</span>.
-
+![intro](img/intro.png)
 
 English below.
 
@@ -82,7 +81,7 @@ The expected response is:
 The Serial-Converter is configured for 2400 baud, 8 bits, even parity, 1 stop bit.
 
 ```
-socat  pty,link=/dev/virtualcom0,raw,echo=0  tcp:192.168.2.51:8234&
+socat  pty,link=/dev/virtualcom0,raw,echo=0,mode=660  tcp:192.168.2.51:8234&
 echo -n -e "\x10\x40\xFE\x3E\x16" > /dev/virtualcom0 
 dd count=1 bs=1 if=/dev/virtualcom0 status=none | xxd -ps
 ```
@@ -141,11 +140,11 @@ Up to now it seems everything is well defined by the standard. There is a good a
 
 There is only 1 code for Energy, and it makes sense to use that for heat. But although the standard allows to *define* a heat-*and*-cooling meter, it does not distinguish between mulitple kinds of energy. There is no code for cooling energy.
 
-Kamstrup solved this issue by using manufacturer specific values (VIFE).
+Kamstrup solved this issue by using manufacturer specific values (VIFE). At least this is what I thought after reading the manual [3].
 
 So we can conclude: For a first decoding attempt, knowledge of the standard (and thus every software that implements it) should suffice. But for real world usage we need to add the knowledge of "manufacturer specific" encoded values from [3] chapter 4. For my goal at least Kamstrup's VIFE 02h = "Cooling Energy (E3)".
 
-So I expect that there is some software that is able to do pretty much of the decoding out of the box, but still will need some configuration for my use case. I indicated VIFE values here in table 11.2.3.1 of [2]:
+So I expect that there is some software that is able to do pretty much of the decoding out of the box, but still will need some configuration for my use case. I indicated values that I expect to be VIFE coded here in table 11.2.3.1 of [2]:
 
 ![11231](img/11231.png)
 
@@ -261,6 +260,8 @@ VIF 86h is to be read like 06h ("Energy in kWh") + 80h ("Extension bit set") ["f
 
 By the way, there is also a code for "Accumulation only if positive contributions". I don't know why Kamstrup did not apply this "enhanced" information to heat energy. Probably to avoid compatibility issues.
 And I wonder why Kamstrup defines a manufacturer specific way, if there *is* a standard-compliant manufacturer-agnostic way. And I am impressed of the M-Bus-authors' work. Covering so many use cases in a both comprehensible and efficient manner. 
+
+Summary: I recommand [wmbusmeters](https://github.com/wmbusmeters/wmbusmeters) for the main software part (see [pull request](https://github.com/wmbusmeters/wmbusmeters/pull/1396) if you need the proposed adaption). The python script here is more or less just a wrapper around it.
 
 
 
